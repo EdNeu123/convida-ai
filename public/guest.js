@@ -181,8 +181,14 @@ function render() {
   const footerHtml = `<div class="cai-fu" style="text-align:center; padding-top: 28px; margin-top: 40px; border-top: 1px solid ${th.line}; font-size: 11.5px; color: ${th.sub}; width: 100%; font-family: 'Manrope', sans-serif;">
     Direitos reservados a Eduardo Passos &copy; 2026<br>
     <div style="margin-top: 10px; display: flex; justify-content: center; gap: 16px; font-weight: 700;">
-      <a href="https://instagram.com/ed_newmann" target="_blank" style="text-decoration:none; color:inherit;">IG: @ed_newmann</a>
-      <a href="https://linkedin.com/in/edu-neumann/" target="_blank" style="text-decoration:none; color:inherit;">LI: /in/edu-neumann/</a>
+      <a href="https://instagram.com/ed_newmann" target="_blank" style="text-decoration:none; color:inherit; display:flex; align-items:center; gap:5px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+        @ed_newmann
+      </a>
+      <a href="https://linkedin.com/in/edu-neumann/" target="_blank" style="text-decoration:none; color:inherit; display:flex; align-items:center; gap:5px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>
+        /in/edu-neumann
+      </a>
     </div>
   </div>`;
 

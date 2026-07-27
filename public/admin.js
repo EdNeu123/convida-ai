@@ -25,13 +25,30 @@ let INVITE_DOC = null;
 let RSVP_COL = null;
 
 function shell(bodyHtml) {
-  app.innerHTML = `<div style="min-height:100vh;background:#0c0b09;color:#ece7dd;font-family:Manrope,sans-serif">${bodyHtml}</div>`;
+  const footerHtml = `<div style="text-align:center; padding: 24px 10px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 11.5px; color: rgba(236,231,221,0.5); width: 100%; max-width: 640px; margin: 20px auto 0;">
+    Direitos reservados a Eduardo Passos &copy; 2026<br>
+    <div style="margin-top: 10px; display: flex; justify-content: center; gap: 16px; font-weight: 700;">
+      <a href="https://instagram.com/ed_newmann" target="_blank" style="text-decoration:none; color:inherit; display:flex; align-items:center; gap:5px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+        @ed_newmann
+      </a>
+      <a href="https://linkedin.com/in/edu-neumann/" target="_blank" style="text-decoration:none; color:inherit; display:flex; align-items:center; gap:5px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>
+        /in/edu-neumann
+      </a>
+    </div>
+  </div>`;
+
+  app.innerHTML = `<div style="min-height:100vh;background:#0c0b09;color:#ece7dd;font-family:Manrope,sans-serif;display:flex;flex-direction:column;">
+    <div style="flex:1;">${bodyHtml}</div>
+    <div style="padding-bottom: 20px;">${footerHtml}</div>
+  </div>`;
 }
 
 function renderLogin() {
   const isLogin = ui.authMode === 'login';
   shell(`
-    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px">
+    <div style="display:flex;align-items:center;justify-content:center;padding:40px 20px 20px;height:100%;">
       <div style="width:100%;max-width:340px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:28px">
         <div style="display:flex;align-items:center;gap:11px;margin-bottom:22px">
           <div style="width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#160c06;background:${SA};font-family:Archivo">C</div>
@@ -145,7 +162,7 @@ function renderDashboard() {
       </div>
       <button id="btn-logout" style="margin-left:auto;background:none;border:1px solid rgba(255,255,255,.12);color:rgba(236,231,221,.6);border-radius:9px;padding:8px 13px;font-size:12.5px;font-weight:600">Sair</button>
     </div>
-    <div style="max-width:640px;margin:0 auto;padding:30px 22px 60px">
+    <div style="max-width:640px;margin:0 auto;padding:30px 22px 40px">
       ${ui.tab === 'compose' ? composeHtml : responsesHtml}
     </div>`);
 
