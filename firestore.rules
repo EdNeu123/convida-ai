@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Dados do convite (nome do formando, data, tema, etc.)
+    // Leitura pública (o convidado precisa ver o convite sem login).
+    // Escrita só pelo formando autenticado (painel admin).
+    match /invites/{inviteId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+
+      // Respostas (RSVP) dos convidados.
+      // Leitura pública: usada para mostrar "fulano já confirmou" no convite.
+      //   -> Se preferir mais privacidade, troque para "if request.auth != null"
+      //      e o "já confirmou" some da tela do convidado.
+      // Criação pública, mas validada (qualquer um pode confirmar presença,
+      // ninguém pode escrever campos fora do esperado nem se passar por outro doc).
+      // Alterar/apagar só o admin logado.
+      match /rsvps/{rsvpId} {
+        allow read: if true;
+        allow create: if request.resource.data.keys().hasOnly(['name','status','recado','ts'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0 && request.resource.data.name.size() < 120
+          && request.resource.data.status in ['accept','decline']
+          && request.resource.data.recado is string && request.resource.data.recado.size() < 500;
+        allow update, delete: if request.auth != null;
+      }
+    }
+  }
+}
