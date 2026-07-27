@@ -13,14 +13,22 @@ let state = { stage: 'invite', guestName: '', recado: '', muted: false, cd: { d:
 function t() { return TEMPLATES[invite.tpl] || TEMPLATES.minimal; }
 
 function updateCd() {
-  if (!invite || !invite.f || !invite.f.data) { state.hasCd = false; return; }
+  const hadCd = state.hasCd;
+  if (!invite || !invite.f || !invite.f.data) { state.hasCd = false; if (hadCd) render(); return; }
   const target = new Date(invite.f.data + 'T' + (invite.f.hora || '19:00') + ':00').getTime();
-  if (isNaN(target)) { state.hasCd = false; return; }
+  if (isNaN(target)) { state.hasCd = false; if (hadCd) render(); return; }
   let s = Math.floor((target - Date.now()) / 1000); if (s < 0) s = 0;
   const d = Math.floor(s/86400), h = Math.floor(s%86400/3600), m = Math.floor(s%3600/60), sec = s%60;
   const p = n => String(n).padStart(2,'0');
   state.hasCd = true; state.cd = { d:String(d), h:p(h), m:p(m), s:p(sec) };
-  render();
+  // Se o bloco do contador já está na tela, só atualiza os números (sem redesenhar tudo,
+  // pra não replicar a animação de entrada do cartão a cada segundo).
+  const el = document.getElementById('cd-d');
+  if (el && hadCd) {
+    Object.keys(state.cd).forEach(k => { const n = document.getElementById('cd-'+k); if (n) n.textContent = state.cd[k]; });
+  } else {
+    render();
+  }
 }
 
 async function submitAccept() {
@@ -89,7 +97,7 @@ function render() {
       </div>
       ${state.hasCd ? `<div class="cai-fu cai-d3" style="display:flex;align-items:center;justify-content:space-between;width:100%;margin-top:26px;padding:18px 4px;border-top:1px solid ${th.line};border-bottom:1px solid ${th.line}">
         ${['d','h','m','s'].map((k,i)=>`${i>0?`<div style="width:1px;height:30px;background:${th.line}"></div>`:''}<div style="display:flex;flex-direction:column;align-items:center;flex:1">
-        <div style="font-family:${nameFam};font-weight:${tpl==='elegante'?600:700};font-size:30px;color:${th.ink};font-variant-numeric:tabular-nums">${state.cd[k]}</div>
+        <div id="cd-${k}" style="font-family:${nameFam};font-weight:${tpl==='elegante'?600:700};font-size:30px;color:${th.ink};font-variant-numeric:tabular-nums">${state.cd[k]}</div>
         <div style="font-size:9.5px;text-transform:uppercase;letter-spacing:.14em;color:${th.sub};font-weight:700;margin-top:6px;font-family:${bodyFam}">${ {d:'dias',h:'horas',m:'min',s:'seg'}[k] }</div></div>`).join('')}
       </div>` : ''}
       <button id="btn-maps" class="cai-fu cai-d4" style="position:relative;display:block;width:100%;height:104px;border-radius:14px;overflow:hidden;margin-top:26px;border:1px solid ${th.line};background:${th.accent}0c;padding:0">
