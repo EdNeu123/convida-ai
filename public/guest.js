@@ -21,12 +21,11 @@ function updateCd() {
   const d = Math.floor(s/86400), h = Math.floor(s%86400/3600), m = Math.floor(s%3600/60), sec = s%60;
   const p = n => String(n).padStart(2,'0');
   state.hasCd = true; state.cd = { d:String(d), h:p(h), m:p(m), s:p(sec) };
-  // Se o bloco do contador já está na tela, só atualiza os números (sem redesenhar tudo,
-  // pra não replicar a animação de entrada do cartão a cada segundo).
+
   const el = document.getElementById('cd-d');
   if (el && hadCd) {
     Object.keys(state.cd).forEach(k => { const n = document.getElementById('cd-'+k); if (n) n.textContent = state.cd[k]; });
-  } else {
+  } else if (state.stage === 'invite') {
     render();
   }
 }
@@ -46,6 +45,7 @@ async function submitAccept() {
     render();
   }
 }
+
 async function submitDecline() {
   try { await addDoc(RSVP_COL, { name: (state.guestName||'').trim()||'Convidado(a)', status: 'decline', recado: '', ts: serverTimestamp() }); } catch(e) {}
   state.stage = 'decline'; playSound('sad', state.muted); render();
@@ -61,20 +61,21 @@ function render() {
   if (proofNames.length === 1) proofLabel = proofNames[0] + ' já confirmou presença';
   else if (proofNames.length === 2) proofLabel = proofNames[0] + ' e ' + proofNames[1] + ' já confirmaram';
   else if (proofNames.length > 2) proofLabel = proofNames[0] + ', ' + proofNames[1] + ' e mais ' + (proofNames.length-2) + ' já confirmaram';
-
+  
   const cardGrain = th.grain === 'grain'
     ? 'position:absolute;inset:-20%;pointer-events:none;opacity:.5;background-image:radial-gradient(rgba(56,39,26,.16) 1px, transparent 1.4px);background-size:4px 4px;animation:cai-grain 4s steps(2) infinite'
     : 'position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 60% at 50% 0%, '+th.accent+'14, transparent 55%)';
+  
   const btnPrimary = 'width:100%;border:none;border-radius:13px;padding:17px;font-size:15.5px;font-weight:700;letter-spacing:.01em;font-family:'+bodyFam+';background:'+th.btnP[0]+';color:'+th.btnP[1];
   const btnSecondary = 'width:100%;background:transparent;border:1px solid '+th.lineStrong+';border-radius:13px;padding:15px;font-size:14px;font-weight:600;color:'+th.sub+';font-family:'+bodyFam;
   const guestInput = 'width:100%;background:'+th.accent+'0d;border:1px solid '+th.line+';border-radius:12px;padding:14px;font-size:15px;color:'+th.ink+';font-family:'+bodyFam;
   const textBtn = 'background:none;border:none;color:'+th.sub+';font-size:13px;margin-top:12px;text-decoration:underline;font-family:'+bodyFam;
-
+  
   document.body.style.background = 'transparent';
   muteBtn.style.display = 'block';
-  muteBtn.textContent = state.muted ? 'áudio desligado' : 'áudio ligado';
+  muteBtn.textContent = state.muted ? 'Áudio desligado' : 'Áudio ligado';
   muteBtn.onclick = () => { state.muted = !state.muted; render(); };
-
+  
   let inner = '';
   if (state.stage === 'invite') {
     const details = [
@@ -102,7 +103,7 @@ function render() {
       </div>` : ''}
       <button id="btn-maps" class="cai-fu cai-d4" style="position:relative;display:block;width:100%;height:104px;border-radius:14px;overflow:hidden;margin-top:26px;border:1px solid ${th.line};background:${th.accent}0c;padding:0">
         <div style="position:absolute;inset:0;background-image:linear-gradient(${th.line} 1px,transparent 1px),linear-gradient(90deg,${th.line} 1px,transparent 1px);background-size:26px 26px;opacity:.7"></div>
-        <div style="position:absolute;top:10px;right:10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:${th.ink};background:${th.pageBg}d9;padding:5px 9px;border-radius:20px;border:1px solid ${th.line};font-family:${bodyFam}">Como chegar →</div>
+        <div style="position:absolute;top:10px;right:10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:${th.ink};background:${th.pageBg}d9;padding:5px 9px;border-radius:20px;border:1px solid ${th.line};font-family:${bodyFam}">Como chegar</div>
         <div style="position:absolute;bottom:0;left:0;right:0;font-family:monospace;font-size:10.5px;padding:8px 12px;background:${th.pageBg};color:${th.sub};border-top:1px solid ${th.line};text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.endereco||'')}</div>
       </button>
       ${f.pixKey ? `<div class="cai-fu cai-d4" style="display:flex;align-items:center;gap:14px;width:100%;margin-top:22px;padding:15px 17px;border-radius:14px;border:1px dashed ${th.lineStrong};background:${th.accent}0a">
@@ -128,7 +129,7 @@ function render() {
       <h2 style="font-family:${nameFam};font-weight:${th.nameW};font-size:30px;color:${th.ink};line-height:1.12;margin:12px 0 18px;text-transform:${th.nameCase}">Que alegria. Como é o seu nome?</h2>
       <input id="in-name" value="${esc(state.guestName)}" placeholder="Seu nome completo" style="${guestInput}">
       <textarea id="in-recado" rows="3" placeholder="Um recado pro formando (opcional)" style="${guestInput};margin-top:11px">${esc(state.recado)}</textarea>
-      <button id="btn-submit" style="${btnPrimary};margin-top:18px">${state.sending?'Enviando…':'Confirmar meu sim'}</button>
+      <button id="btn-submit" style="${btnPrimary};margin-top:18px">${state.sending?'Enviando...':'Confirmar meu sim'}</button>
       <button id="btn-back" style="${textBtn}">voltar</button>
     </div>`;
   } else if (state.stage === 'celebrate') {
@@ -142,10 +143,10 @@ function render() {
     </div>`;
   } else if (state.stage === 'decline') {
     inner = `<div class="cai-fu" style="width:100%;text-align:center;display:flex;flex-direction:column;align-items:center">
-      <div style="font-size:54px;color:${th.accent};opacity:.7">✧</div>
+      <div style="font-size:54px;color:${th.accent};opacity:.7">💔</div>
       <div style="font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.22em;color:${th.accent};font-family:${bodyFam}">Obrigado pelo retorno</div>
       <h2 style="font-family:${nameFam};font-weight:${th.nameW};font-size:clamp(38px,10vw,52px);color:${th.ink};margin:12px 0 16px">Vamos sentir sua falta</h2>
-      <p style="font-size:16px;line-height:1.65;color:${th.ink};opacity:.82;max-width:34ch;margin:0 auto 26px;font-family:${bodyFam}">Agradeço de coração por avisar. Fica pra próxima, combinado? Um abraço apertado — e obrigado por tudo.</p>
+      <p style="font-size:16px;line-height:1.65;color:${th.ink};opacity:.82;max-width:34ch;margin:0 auto 26px;font-family:${bodyFam}">Agradeço de coração por avisar. Fica pra próxima, combinado? Um abraço apertado e obrigado por tudo.</p>
       <button id="btn-reset2" style="${btnSecondary};max-width:280px;margin-top:6px">voltar ao convite</button>
     </div>`;
   }
@@ -156,21 +157,26 @@ function render() {
   </div>`;
 
   const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
+  
   on('btn-accept','click',()=>{ state.stage='form'; render(); });
   on('btn-decline','click', submitDecline);
   on('btn-submit','click', submitAccept);
   on('btn-back','click',()=>{ state.stage='invite'; render(); });
   on('btn-reset','click',()=>{ stopConfetti(canvas); state.stage='invite'; state.guestName=''; state.recado=''; render(); });
   on('btn-reset2','click',()=>{ state.stage='invite'; render(); });
+  
   on('in-name','input', e=>{ state.guestName = e.target.value; });
   on('in-recado','input', e=>{ state.recado = e.target.value; });
+  
   ['btn-maps','btn-maps2'].forEach(id => on(id,'click', () => {
     const q = encodeURIComponent(f.endereco || f.local || '');
     window.open('https://www.google.com/maps/search/?api=1&query=' + q, '_blank');
   }));
+  
   ['btn-cal','btn-cal2'].forEach(id => on(id,'click', () => {
     const ics = buildICS(f); if (ics) downloadBlob(new Blob([ics],{type:'text/calendar;charset=utf-8'}), 'formatura.ics');
   }));
+  
   on('btn-pix','click', () => { try { navigator.clipboard.writeText(f.pixKey || ''); } catch(e){} });
 }
 
@@ -183,6 +189,6 @@ async function init() {
   onSnapshot(query(RSVP_COL, orderBy('ts','desc')), s => { responses = s.docs.map(d => d.data()); render(); });
   setInterval(updateCd, 1000);
   updateCd();
-  render();
 }
+
 init();
