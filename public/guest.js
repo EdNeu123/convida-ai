@@ -1,4 +1,4 @@
-import { db, doc, getDoc, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, INVITE_DOC, RSVP_COL } from './firebase-init.js';
+import { db, doc, getDoc, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from './firebase-init.js';
 import { TEMPLATES, GLOBAL_CSS, fmtDate, fmtShort, first, buildICS, downloadBlob, playSound, runConfetti, stopConfetti } from './shared.js';
 
 document.getElementById('global-css').textContent = GLOBAL_CSS;
@@ -6,9 +6,19 @@ const app = document.getElementById('app');
 const canvas = document.getElementById('confetti-canvas');
 const muteBtn = document.getElementById('mute-btn');
 
+const urlParams = new URLSearchParams(window.location.search);
+const uid = urlParams.get('u');
+let INVITE_DOC = null;
+let RSVP_COL = null;
+
+if (uid) {
+  INVITE_DOC = doc(db, 'invites', uid);
+  RSVP_COL = collection(db, 'invites', uid, 'rsvps');
+}
+
 let invite = null;      // dados do convite (f) vindos do Firestore
 let responses = [];     // rsvps (para "prova social")
-let state = { stage: 'invite', guestName: '', recado: '', muted: false, cd: { d:'--',h:'--',m:'--',s:'--' }, hasCd: false, sending: false };
+let state = { stage: 'invite', guestName: '', recado: '', muted: false, cd: { d:'--',h:'--',m:'--',s:'--' }, hasCd: false, sending: false, declining: false };
 
 function t() { return TEMPLATES[invite.tpl] || TEMPLATES.minimal; }
 
@@ -66,7 +76,9 @@ async function submitDecline() {
 }
 
 function render() {
+  if (!uid) { app.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;color:#7c766a;font-family:Manrope,sans-serif;font-size:14px;text-align:center;padding:20px;">URL do convite inválida. Certifique-se de usar o link completo.</div>'; return; }
   if (!invite) { app.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;color:#7c766a;font-family:Manrope,sans-serif;font-size:14px">Convite ainda não foi publicado.</div>'; return; }
+  
   const th = t(), f = invite.f, nameFam = th.display, bodyFam = th.font, tpl = invite.tpl;
   const overText = (tpl === 'divertido') ? 'Você. Está. Convidado.' : 'Você está convidado(a) para';
   const accepts = responses.filter(r => r.status === 'accept');
@@ -103,7 +115,7 @@ function render() {
       <div class="cai-fu cai-d1" style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.18em;color:${th.sub};font-family:${bodyFam}">${esc(f.titulo)}</div>
       ${f.deadline ? `<div class="cai-fu cai-d1" style="font-size:12px;font-weight:700;color:${th.accent};margin-top:10px;font-family:${bodyFam}">Confirme sua presença até ${fmtShort(f.deadline)}</div>` : ''}
       <div class="cai-fu cai-d2" style="height:1px;background:${th.line};margin:26px 0 24px;width:100%"></div>
-      <p class="cai-fu cai-d2" style="font-size:${tpl==='elegante'?'20px':'16px'};line-height:1.7;color:${th.ink};opacity:.9;font-family:${bodyFam};font-weight:${tpl==='elegante'?'500':'400'}">${esc(f.mensagem)}</p>
+      <p class="cai-fu cai-d2" style="font-size:${tpl==='elegante'?'20px':'16px'};line-height:1.7;color:${th.ink};opacity:.9;font-family:${bodyFam};font-weight:${tpl==='elegante'?'500':'400'};text-align:justify;white-space:pre-wrap;">${esc(f.mensagem)}</p>
       <div class="cai-fu cai-d3" style="width:100%">
         ${details.map(d=>`<div style="display:flex;justify-content:space-between;align-items:baseline;gap:18px;padding:15px 0;border-top:1px solid ${th.line}">
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:${th.sub};font-family:${bodyFam}">${d.label}</div>
@@ -166,9 +178,20 @@ function render() {
     </div>`;
   }
 
+  const footerHtml = `<div class="cai-fu" style="text-align:center; padding-top: 28px; margin-top: 40px; border-top: 1px solid ${th.line}; font-size: 11.5px; color: ${th.sub}; width: 100%; font-family: 'Manrope', sans-serif;">
+    Direitos reservados a Eduardo Passos &copy; 2026<br>
+    <div style="margin-top: 10px; display: flex; justify-content: center; gap: 16px; font-weight: 700;">
+      <a href="https://instagram.com/ed_newmann" target="_blank" style="text-decoration:none; color:inherit;">IG: @ed_newmann</a>
+      <a href="https://linkedin.com/in/edu-neumann/" target="_blank" style="text-decoration:none; color:inherit;">LI: /in/edu-neumann/</a>
+    </div>
+  </div>`;
+
   app.innerHTML = `<div style="min-height:100vh;width:100%;display:flex;align-items:flex-start;justify-content:center;position:relative;overflow-x:hidden;background:${th.pageBg};font-family:${bodyFam};color:${th.ink}">
     <div style="${cardGrain}"></div>
-    <div style="position:relative;z-index:5;width:100%;max-width:452px;padding:80px 30px 82px;display:flex;flex-direction:column;align-items:flex-start">${inner}</div>
+    <div style="position:relative;z-index:5;width:100%;max-width:452px;padding:80px 30px 42px;display:flex;flex-direction:column;align-items:flex-start">
+      ${inner}
+      ${footerHtml}
+    </div>
   </div>`;
 
   const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
@@ -198,6 +221,7 @@ function render() {
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 async function init() {
+  if (!uid) { render(); return; }
   const snap = await getDoc(INVITE_DOC);
   if (snap.exists()) { invite = snap.data(); }
   onSnapshot(INVITE_DOC, s => { if (s.exists()) { invite = s.data(); render(); } });
