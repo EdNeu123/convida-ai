@@ -1,10 +1,20 @@
-import { db, doc, getDoc, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, INVITE_DOC, RSVP_COL } from './firebase-init.js';
+import { db, doc, getDoc, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from './firebase-init.js';
 import { TEMPLATES, GLOBAL_CSS, fmtDate, fmtShort, first, buildICS, downloadBlob, playSound, runConfetti, stopConfetti } from './shared.js';
 
 document.getElementById('global-css').textContent = GLOBAL_CSS;
 const app = document.getElementById('app');
 const canvas = document.getElementById('confetti-canvas');
 const muteBtn = document.getElementById('mute-btn');
+
+const urlParams = new URLSearchParams(window.location.search);
+const uid = urlParams.get('u');
+let INVITE_DOC = null;
+let RSVP_COL = null;
+
+if (uid) {
+  INVITE_DOC = doc(db, 'invites', uid);
+  RSVP_COL = collection(db, 'invites', uid, 'rsvps');
+}
 
 let invite = null;      // dados do convite (f) vindos do Firestore
 let responses = [];     // rsvps (para "prova social")
@@ -52,6 +62,7 @@ async function submitDecline() {
 }
 
 function render() {
+  if (!uid) { app.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;color:#7c766a;font-family:Manrope,sans-serif;font-size:14px">URL do convite inválida. Certifique-se de usar o link completo.</div>'; return; }
   if (!invite) { app.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;color:#7c766a;font-family:Manrope,sans-serif;font-size:14px">Convite ainda não foi publicado.</div>'; return; }
   const th = t(), f = invite.f, nameFam = th.display, bodyFam = th.font, tpl = invite.tpl;
   const overText = (tpl === 'divertido') ? 'Você. Está. Convidado.' : 'Você está convidado(a) para';
@@ -183,6 +194,7 @@ function render() {
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 async function init() {
+  if (!uid) { render(); return; }
   const snap = await getDoc(INVITE_DOC);
   if (snap.exists()) { invite = snap.data(); }
   onSnapshot(INVITE_DOC, s => { if (s.exists()) { invite = s.data(); render(); } });

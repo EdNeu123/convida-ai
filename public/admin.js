@@ -1,6 +1,6 @@
 import {
-  auth, db, doc, getDoc, setDoc, onSnapshot, query, orderBy, RSVP_COL, INVITE_DOC,
-  signInWithEmailAndPassword, onAuthStateChanged, signOut
+  auth, db, doc, getDoc, setDoc, onSnapshot, query, orderBy, collection,
+  signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut
 } from './firebase-init.js';
 import { TEMPLATES, GLOBAL_CSS, downloadBlob } from './shared.js';
 
@@ -9,9 +9,9 @@ document.getElementById('global-css').textContent = GLOBAL_CSS + `
   .admin-lbl{font-size:10.5px;font-weight:700;color:rgba(236,231,221,.52);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;display:block}
   .field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
 `;
+
 const app = document.getElementById('app');
 const SA = '#ff7a4d';
-
 const DEFAULT_F = {
   formando: '', titulo: 'Colação de Grau', mensagem: TEMPLATES.minimal.msg,
   data: '', hora: '19:30', local: '', endereco: '', dresscode: '', pixKey: '', deadline: ''
@@ -20,13 +20,16 @@ const DEFAULT_F = {
 let user = null;
 let invite = { tpl: 'minimal', f: { ...DEFAULT_F } };
 let responses = [];
-let ui = { tab: 'compose', saved: false, copied: false, copiedWa: false, loginErr: '' };
+let ui = { tab: 'compose', saved: false, copied: false, copiedWa: false, loginErr: '', authMode: 'login' };
+let INVITE_DOC = null;
+let RSVP_COL = null;
 
 function shell(bodyHtml) {
   app.innerHTML = `<div style="min-height:100vh;background:#0c0b09;color:#ece7dd;font-family:Manrope,sans-serif">${bodyHtml}</div>`;
 }
 
 function renderLogin() {
+  const isLogin = ui.authMode === 'login';
   shell(`
     <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px">
       <div style="width:100%;max-width:340px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:28px">
@@ -37,15 +40,28 @@ function renderLogin() {
         <div class="field"><label class="admin-lbl">E-mail</label><input id="l-email" type="email" class="admin-input" placeholder="voce@email.com"></div>
         <div class="field"><label class="admin-lbl">Senha</label><input id="l-pass" type="password" class="admin-input" placeholder="••••••••"></div>
         ${ui.loginErr ? `<div style="color:#ff8a80;font-size:12.5px;margin-bottom:12px">${ui.loginErr}</div>` : ''}
-        <button id="l-submit" style="width:100%;background:${SA};color:#160c06;border:none;border-radius:11px;padding:13px;font-size:14px;font-weight:800">Entrar</button>
+        <button id="l-submit" style="width:100%;background:${SA};color:#160c06;border:none;border-radius:11px;padding:13px;font-size:14px;font-weight:800">${isLogin ? 'Entrar' : 'Criar Conta'}</button>
+        <button id="l-toggle" style="width:100%;background:none;color:${SA};border:none;margin-top:16px;font-size:13px;text-decoration:underline">${isLogin ? 'Não tem conta? Cadastre-se' : 'Já tem conta? Faça login'}</button>
       </div>
     </div>`);
+
   document.getElementById('l-submit').onclick = async () => {
     const email = document.getElementById('l-email').value.trim();
     const pass = document.getElementById('l-pass').value;
     ui.loginErr = '';
-    try { await signInWithEmailAndPassword(auth, email, pass); }
-    catch (e) { ui.loginErr = 'E-mail ou senha inválidos.'; renderLogin(); }
+    try {
+      if (isLogin) await signInWithEmailAndPassword(auth, email, pass);
+      else await createUserWithEmailAndPassword(auth, email, pass);
+    } catch (e) {
+      ui.loginErr = 'Erro na autenticação. Verifique os dados inseridos.';
+      renderLogin();
+    }
+  };
+
+  document.getElementById('l-toggle').onclick = () => {
+    ui.authMode = isLogin ? 'signup' : 'login';
+    ui.loginErr = '';
+    renderLogin();
   };
 }
 
@@ -61,11 +77,10 @@ function renderDashboard() {
   const f = invite.f;
   const accepts = responses.filter(r => r.status === 'accept');
   const declines = responses.filter(r => r.status === 'decline');
-  const link = window.location.origin + '/';
-
+  const link = window.location.origin + '/?u=' + user.uid;
   const tabOn = 'padding:8px 15px;border:none;border-radius:8px;font-size:13px;font-weight:700;background:'+SA+';color:#160c06';
   const tabOff = 'padding:8px 15px;border:none;border-radius:8px;font-size:13px;font-weight:700;background:transparent;color:rgba(236,231,221,.58)';
-
+  
   const composeHtml = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
       ${fieldRow('f-formando','Nome do formando', f.formando)}
@@ -82,14 +97,14 @@ function renderDashboard() {
       ${fieldRow('f-dresscode','Traje', f.dresscode)}
       ${fieldRow('f-deadline','Confirmar até', f.deadline, {type:'date'})}
     </div>
-    ${fieldRow('f-pix','Chave PIX (opcional — caixinha da festa)', f.pixKey)}
+    ${fieldRow('f-pix','Chave PIX (opcional - caixinha da festa)', f.pixKey)}
     <div class="field"><label class="admin-lbl">Tema visual</label>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         ${Object.keys(TEMPLATES).map(id => `<button data-tpl="${id}" style="padding:9px 16px;border-radius:10px;font-size:13.5px;font-weight:600;border:1px solid ${id===invite.tpl?SA:'rgba(255,255,255,.1)'};background:${id===invite.tpl?SA:'rgba(255,255,255,.04)'};color:${id===invite.tpl?'#160c06':'rgba(236,231,221,.72)'}">${TEMPLATES[id].label}</button>`).join('')}
       </div>
     </div>
     <button id="btn-save" style="width:100%;background:${SA};color:#160c06;border:none;border-radius:13px;padding:16px;font-size:15px;font-weight:800;margin-top:6px">${ui.saved?'Salvo ✓':'Salvar convite'}</button>
-
+    
     <div style="margin-top:28px;padding-top:22px;border-top:1px solid rgba(255,255,255,.08)">
       <div class="admin-lbl">Link do convite (mande para todos os convidados)</div>
       <div style="display:flex;gap:8px;margin-bottom:10px">
@@ -98,12 +113,12 @@ function renderDashboard() {
       </div>
       <button id="btn-wa" style="width:100%;background:#25d366;color:#04310f;border:none;border-radius:11px;padding:12px;font-size:13.5px;font-weight:800">${ui.copiedWa?'Texto copiado ✓':'Copiar texto para WhatsApp'}</button>
     </div>`;
-
+    
   const responsesHtml = `
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px">
       <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px"><div style="font-size:28px;font-weight:800">${responses.length}</div><div style="font-size:12px;color:rgba(236,231,221,.5);font-weight:600;margin-top:6px">Total</div></div>
       <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px"><div style="font-size:28px;font-weight:800;color:#5bd08a">${accepts.length}</div><div style="font-size:12px;color:rgba(236,231,221,.5);font-weight:600;margin-top:6px">Confirmados</div></div>
-      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px"><div style="font-size:28px;font-weight:800;color:#e88">${declines.length}</div><div style="font-size:12px;color:rgba(236,231,221,.5);font-weight:600;margin-top:6px">Não vão</div></div>
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px"><div style="font-size:28px;font-weight:800;color:#e88">${declines.length}</div><div style="font-size:12px;color:rgba(236,231,221,.5);font-weight:600;margin-top:6px">Não</div></div>
     </div>
     <button id="btn-csv" style="background:rgba(255,255,255,.06);color:#ece7dd;border:1px solid rgba(255,255,255,.12);border-radius:11px;padding:10px 16px;font-size:13px;font-weight:700;margin-bottom:16px">Exportar CSV</button>
     <div>${responses.length ? responses.map(r => {
@@ -169,8 +184,13 @@ function escAttr(s) { return esc(s); }
 onAuthStateChanged(auth, async (u) => {
   user = u;
   if (!user) { renderLogin(); return; }
+  
+  INVITE_DOC = doc(db, 'invites', user.uid);
+  RSVP_COL = collection(db, 'invites', user.uid, 'rsvps');
+  
   const snap = await getDoc(INVITE_DOC);
   if (snap.exists()) invite = { tpl: 'minimal', f: { ...DEFAULT_F }, ...snap.data() };
   onSnapshot(query(RSVP_COL, orderBy('ts','desc')), s => { responses = s.docs.map(d => d.data()); if (user) renderDashboard(); });
+  
   renderDashboard();
 });
