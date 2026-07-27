@@ -89,7 +89,7 @@ function render() {
       <div class="cai-fu cai-d1" style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.18em;color:${th.sub};font-family:${bodyFam}">${esc(f.titulo)}</div>
       ${f.deadline ? `<div class="cai-fu cai-d1" style="font-size:12px;font-weight:700;color:${th.accent};margin-top:10px;font-family:${bodyFam}">Confirme sua presença até ${fmtShort(f.deadline)}</div>` : ''}
       <div class="cai-fu cai-d2" style="height:1px;background:${th.line};margin:26px 0 24px;width:100%"></div>
-      <p class="cai-fu cai-d2" style="font-size:${tpl==='elegante'?'20px':'16px'};line-height:1.7;color:${th.ink};opacity:.9;font-family:${bodyFam};font-weight:${tpl==='elegante'?'500':'400'}">${esc(f.mensagem)}</p>
+      <p class="cai-fu cai-d2" style="font-size:${tpl==='elegante'?'20px':'16px'};line-height:1.7;color:${th.ink};opacity:.9;font-family:${bodyFam};font-weight:${tpl==='elegante'?'500':'400'};text-align:justify;white-space:pre-wrap;">${esc(f.mensagem)}</p>
       <div class="cai-fu cai-d3" style="width:100%">
         ${details.map(d=>`<div style="display:flex;justify-content:space-between;align-items:baseline;gap:18px;padding:15px 0;border-top:1px solid ${th.line}">
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:${th.sub};font-family:${bodyFam}">${d.label}</div>
