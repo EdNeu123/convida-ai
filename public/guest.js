@@ -1,20 +1,10 @@
-import { db, doc, getDoc, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from './firebase-init.js';
+import { db, doc, getDoc, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, INVITE_DOC, RSVP_COL } from './firebase-init.js';
 import { TEMPLATES, GLOBAL_CSS, fmtDate, fmtShort, first, buildICS, downloadBlob, playSound, runConfetti, stopConfetti } from './shared.js';
 
 document.getElementById('global-css').textContent = GLOBAL_CSS;
 const app = document.getElementById('app');
 const canvas = document.getElementById('confetti-canvas');
 const muteBtn = document.getElementById('mute-btn');
-
-const urlParams = new URLSearchParams(window.location.search);
-const uid = urlParams.get('u');
-let INVITE_DOC = null;
-let RSVP_COL = null;
-
-if (uid) {
-  INVITE_DOC = doc(db, 'invites', uid);
-  RSVP_COL = collection(db, 'invites', uid, 'rsvps');
-}
 
 let invite = null;      // dados do convite (f) vindos do Firestore
 let responses = [];     // rsvps (para "prova social")
@@ -57,12 +47,25 @@ async function submitAccept() {
 }
 
 async function submitDecline() {
-  try { await addDoc(RSVP_COL, { name: (state.guestName||'').trim()||'Convidado(a)', status: 'decline', recado: '', ts: serverTimestamp() }); } catch(e) {}
-  state.stage = 'decline'; playSound('sad', state.muted); render();
+  if (state.sending) return;
+  const name = (state.guestName || '').trim();
+  if (!name) {
+    alert('Por favor, informe seu nome antes de confirmar que não poderá ir.');
+    return;
+  }
+  state.sending = true;
+  try { 
+    await addDoc(RSVP_COL, { name, status: 'decline', recado: state.recado || '', ts: serverTimestamp() }); 
+    state.stage = 'decline'; state.sending = false;
+    playSound('sad', state.muted); render();
+  } catch(e) {
+    state.sending = false;
+    alert('Não consegui enviar sua resposta agora. Tenta de novo em instantes.');
+    render();
+  }
 }
 
 function render() {
-  if (!uid) { app.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;color:#7c766a;font-family:Manrope,sans-serif;font-size:14px">URL do convite inválida. Certifique-se de usar o link completo.</div>'; return; }
   if (!invite) { app.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;color:#7c766a;font-family:Manrope,sans-serif;font-size:14px">Convite ainda não foi publicado.</div>'; return; }
   const th = t(), f = invite.f, nameFam = th.display, bodyFam = th.font, tpl = invite.tpl;
   const overText = (tpl === 'divertido') ? 'Você. Está. Convidado.' : 'Você está convidado(a) para';
@@ -100,7 +103,7 @@ function render() {
       <div class="cai-fu cai-d1" style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.18em;color:${th.sub};font-family:${bodyFam}">${esc(f.titulo)}</div>
       ${f.deadline ? `<div class="cai-fu cai-d1" style="font-size:12px;font-weight:700;color:${th.accent};margin-top:10px;font-family:${bodyFam}">Confirme sua presença até ${fmtShort(f.deadline)}</div>` : ''}
       <div class="cai-fu cai-d2" style="height:1px;background:${th.line};margin:26px 0 24px;width:100%"></div>
-      <p class="cai-fu cai-d2" style="font-size:${tpl==='elegante'?'20px':'16px'};line-height:1.7;color:${th.ink};opacity:.9;font-family:${bodyFam};font-weight:${tpl==='elegante'?'500':'400'};text-align:justify;white-space:pre-wrap;">${esc(f.mensagem)}</p>
+      <p class="cai-fu cai-d2" style="font-size:${tpl==='elegante'?'20px':'16px'};line-height:1.7;color:${th.ink};opacity:.9;font-family:${bodyFam};font-weight:${tpl==='elegante'?'500':'400'}">${esc(f.mensagem)}</p>
       <div class="cai-fu cai-d3" style="width:100%">
         ${details.map(d=>`<div style="display:flex;justify-content:space-between;align-items:baseline;gap:18px;padding:15px 0;border-top:1px solid ${th.line}">
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:${th.sub};font-family:${bodyFam}">${d.label}</div>
@@ -135,12 +138,13 @@ function render() {
         <button id="btn-maps2" style="background:none;border:none;color:${th.sub};font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;font-family:${bodyFam};border-bottom:1px solid ${th.line};padding:2px 0">Como chegar</button>
       </div>`;
   } else if (state.stage === 'form') {
+    const isDecline = state.declining;
     inner = `<div class="cai-fu" style="width:100%">
-      <div style="font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.22em;color:${th.accent};font-family:${bodyFam}">Confirmar presença</div>
-      <h2 style="font-family:${nameFam};font-weight:${th.nameW};font-size:30px;color:${th.ink};line-height:1.12;margin:12px 0 18px;text-transform:${th.nameCase}">Que alegria. Como é o seu nome?</h2>
+      <div style="font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.22em;color:${th.accent};font-family:${bodyFam}">${isDecline ? 'Avisar ausência' : 'Confirmar presença'}</div>
+      <h2 style="font-family:${nameFam};font-weight:${th.nameW};font-size:30px;color:${th.ink};line-height:1.12;margin:12px 0 18px;text-transform:${th.nameCase}">${isDecline ? 'Que pena. Como é o seu nome?' : 'Que alegria. Como é o seu nome?'}</h2>
       <input id="in-name" value="${esc(state.guestName)}" placeholder="Seu nome completo" style="${guestInput}">
       <textarea id="in-recado" rows="3" placeholder="Um recado pro formando (opcional)" style="${guestInput};margin-top:11px">${esc(state.recado)}</textarea>
-      <button id="btn-submit" style="${btnPrimary};margin-top:18px">${state.sending?'Enviando...':'Confirmar meu sim'}</button>
+      <button id="btn-submit" style="${btnPrimary};margin-top:18px">${state.sending?'Enviando...':(isDecline ? 'Confirmar que não irei' : 'Confirmar meu sim')}</button>
       <button id="btn-back" style="${textBtn}">voltar</button>
     </div>`;
   } else if (state.stage === 'celebrate') {
@@ -169,9 +173,9 @@ function render() {
 
   const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
   
-  on('btn-accept','click',()=>{ state.stage='form'; render(); });
-  on('btn-decline','click', submitDecline);
-  on('btn-submit','click', submitAccept);
+  on('btn-accept','click',()=>{ state.stage='form'; state.declining=false; render(); });
+  on('btn-decline','click',()=>{ state.stage='form'; state.declining=true; render(); });
+  on('btn-submit','click', () => { if (state.declining) submitDecline(); else submitAccept(); });
   on('btn-back','click',()=>{ state.stage='invite'; render(); });
   on('btn-reset','click',()=>{ stopConfetti(canvas); state.stage='invite'; state.guestName=''; state.recado=''; render(); });
   on('btn-reset2','click',()=>{ state.stage='invite'; render(); });
@@ -194,7 +198,6 @@ function render() {
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 async function init() {
-  if (!uid) { render(); return; }
   const snap = await getDoc(INVITE_DOC);
   if (snap.exists()) { invite = snap.data(); }
   onSnapshot(INVITE_DOC, s => { if (s.exists()) { invite = s.data(); render(); } });
