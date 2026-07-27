@@ -4,12 +4,12 @@
 // projeto > Geral > "Seus apps" > app Web (ícone </>).
 // ============================================================
 const firebaseConfig = {
-  apiKey: "COLE_AQUI",
-  authDomain: "SEU-PROJETO.firebaseapp.com",
-  projectId: "SEU-PROJETO",
-  storageBucket: "SEU-PROJETO.appspot.com",
-  messagingSenderId: "COLE_AQUI",
-  appId: "COLE_AQUI",
+  apiKey: "AIzaSyCc6dmPqo3sdKYePYAEhMnite_xQujLsBk",
+  authDomain: "convida-ai-78d85.firebaseapp.com",
+  projectId: "convida-ai-78d85",
+  storageBucket: "convida-ai-78d85.firebasestorage.app",
+  messagingSenderId: "935925545975",
+  appId: "1:935925545975:web:b0d58df0b1c7a6e7888cf2",
 };
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
